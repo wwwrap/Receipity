@@ -1,0 +1,4 @@
+gradio
+easyocr
+pandas
+pillow
