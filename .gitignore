@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local pretrained EasyOCR model weights (download on each machine)
+/models/
