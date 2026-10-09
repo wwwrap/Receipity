@@ -1,6 +1,6 @@
 # ReceiptWise — Kivy Android prototype
 
-A native Python/Kivy interface for selecting receipt images, running mock OCR,
+A native Python/Kivy interface for selecting receipt images, running local OCR,
 correcting receipt details, and saving receipts locally. Launch **main.py at this
 directory's root**, inside the `realitychck` project. `frontend/app.py` also
 launches the same Kivy UI. The application does not use Gradio.
@@ -30,9 +30,9 @@ The desktop picker browses local files; Android uses its system image picker.
 - `sampleData/images/` contains three usable receipt photos. The annotation JSON
   files are ground truth, not extracted merchant/date/total values.
 - `backend.inference_engine.recognize_receipt` returns raw text only. On desktop,
-  **Read Receipt Text (Desktop OCR)** runs this API in a background worker and
-  displays its text. Enter the receipt fields manually afterward; there is no
-  field parser yet. **Scan Receipt** still uses clearly labeled mock values.
+  **Scan Receipt** runs this API and `extractor.parse_receipt`
+  in a background worker. It fills supported fields, displays review notes,
+  and preserves raw text for comparison. There is no sample-data fallback.
 - To enable desktop OCR, run these commands in the virtual environment:
 
   ```powershell
@@ -42,15 +42,15 @@ The desktop picker browses local files; Android uses its system image picker.
 
   Initial model setup requires internet. Actual scans use the offline backend.
   Missing packages/weights produce an error in the UI, not fake OCR results.
-- Android retains mock scanning. Its APK excludes EasyOCR/PyTorch, models, sample
-  data, and desktop utilities. The desktop OCR button is hidden there.
+- The current Android APK excludes EasyOCR/PyTorch, models, sample data, and
+  desktop utilities. Android supports image selection and manual receipt entry;
+  tapping Scan Receipt explains that OCR is currently available on desktop.
 - The UI continues using its validated `receiptwise/storage.py` SQLite store in
   app-private storage. `backend/database.py` and `data/reality_check.db` are the
   team's separate legacy database; those records are not automatically imported
   or double-written. The database demo uses temporary storage during testing.
-- `test/test_pipeline.py` now calls the existing text API instead of the missing
-  `extract_and_parse` function. It displays raw text rather than claiming to
-  evaluate extracted fields against the dataset.
+- `test/test_pipeline.py` displays OCR text and parsed fields/notes for manual
+  evaluation. It does not claim to measure extraction accuracy against the dataset.
 - `requirements-dev.txt` adds optional dataset tools. `fetch_samples.py` saves
   in the repository's sample folder regardless of the launch directory.
 
@@ -58,13 +58,50 @@ The desktop picker browses local files; Android uses its system image picker.
 
 1. Tap **Select Receipt Image** and select an image from the device's images or
    document provider. Canceling preserves the current receipt.
-2. Tap **Scan Receipt**. It always fills `Jollibee`, `2026-10-09`, and `245.50`.
-   The success message explicitly identifies these as mock values.
+2. Tap **Scan Receipt** on desktop. It reads your selected photo and fills the
+   supported fields. The examples are hints only; fields initially contain no text.
 3. Edit the merchant, date, or total. Scanning is optional if entering manually.
 4. Tap **Save Receipt**. A merchant, real ISO date (`YYYY-MM-DD`), positive amount
    with up to two decimal places, and selected image are required.
 5. Check the recent receipts. Tap **New Receipt** to clear
    the form, or select another image to begin another receipt.
+
+For desktop OCR, use **Scan Receipt** after model setup.
+The parser fills only supported values. Read the notes in **Check receipt details**
+and compare with the photo and raw OCR text. Missing fields stay blank; Save
+Receipt requires you to correct them first. Parsed values are never saved automatically.
+
+## Parser contract
+
+```python
+from extractor import parse_receipt
+
+result = parse_receipt("Merchant: Jollibee\nDate: 2026-10-09\nTotal: PHP 245.50")
+# {"merchant": "Jollibee", "date": "2026-10-09", "amount": "245.50", "notes": []}
+```
+
+`merchant`, `date`, and `amount` are strings or `None`; `notes` is a list of review
+messages. `amount` maps to the UI's Total Amount field. Decimal strings preserve
+centavos without float conversion. For image input, the backend also exposes
+`backend.inference_engine.extract_receipt(image)` with the same four-key result.
+
+- Explicit merchant labels are preferred; a single plausible header name is a
+  suggestion with a verification note. Conflicting names remain `None`.
+- Dates require a complete four-digit year and a real calendar date. ISO,
+  English month names, and unambiguous numeric dates are supported. `09/10/2026`
+  stays blank because day/month order is unknown. Invalid dates, conflicting
+  transaction dates, and two-digit years require review. Expiry/printed dates are
+  excluded. The parser never substitutes today's date or repairs OCR characters.
+- Amounts require a labeled final total. Grand total/amount due take precedence
+  over plain total, with a note when they differ. Conflicting final totals,
+  unreadable/negative/zero values, unsupported currency/number formats, or missing
+  totals remain `None`. Cash, change, tax, subtotal, and item sums are not used.
+- Amount parsing expects PHP-style decimal points with optional thousands commas.
+  This is a rule-based prototype, not a guarantee of extraction accuracy: a plausible
+  but incorrectly recognized value still needs human comparison with the photo.
+
+Run parser-only tests without Kivy, NumPy, or models:
+`python -m unittest tests.test_extractor -v`.
 
 Amounts use integer centavos to avoid floating-point rounding errors. Repeated
 save taps on the same draft do not create another transaction. Deliberately
@@ -94,6 +131,7 @@ sudo apt install -y python3-venv python3-pip git zip unzip openjdk-17-jdk \
   libtinfo6 cmake libffi-dev libssl-dev autopoint gettext
 mkdir -p ~/ReceiptWise/receiptwise
 cp /mnt/c/Personal/College/ReceiptWise/realitychck/main.py ~/ReceiptWise/
+cp /mnt/c/Personal/College/ReceiptWise/realitychck/extractor.py ~/ReceiptWise/
 cp /mnt/c/Personal/College/ReceiptWise/realitychck/buildozer.spec ~/ReceiptWise/
 cp /mnt/c/Personal/College/ReceiptWise/realitychck/receiptwise/*.py ~/ReceiptWise/receiptwise/
 cp /mnt/c/Personal/College/ReceiptWise/realitychck/receiptwise/*.kv ~/ReceiptWise/receiptwise/
@@ -156,6 +194,8 @@ Before considering the Android build device-verified, test on a phone/emulator:
 - `receiptwise/app.py` / `interface.kv`: actions and touch-friendly vertical UI.
 - `receiptwise/picker.py` / `images.py`: platform selection and private image import.
 - `receiptwise/storage.py`: receipt validation, SQLite records, and currency formatting.
-- `receiptwise/scanner.py`: OCR integration point. Replace `scan_receipt` while
-  preserving its `{merchant, date, total}` string return shape. Real OCR should
-  run in a worker and publish results through Kivy's Clock, as image import does.
+- `extractor.py`: dependency-free parsing into `{merchant, date, amount, notes}`.
+- `receiptwise/scanner.py`: real scan/extraction and the offline OCR text adapter.
+- `tests/real_ocr_smoke.py`: optional real image-to-text check using installed models;
+  run `python -m tests.real_ocr_smoke`. It does not download models or mock OCR.
+- `backend/inference_engine.py`: raw OCR and combined image extraction APIs.

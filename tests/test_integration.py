@@ -28,9 +28,11 @@ class RepositoryIntegrationTests(unittest.TestCase):
                     with Image.open(imported) as image:
                         self.assertLessEqual(max(image.size), 1600)
                         self.assertEqual(image.mode, "RGB")
-                    result = scan_receipt(imported)
+                    with patch("receiptwise.scanner.read_receipt_text", return_value=
+                               f"Merchant: {sample.stem}\nDate: 2026-10-09\nTotal: 123.45"):
+                        result = scan_receipt(imported)
                     self.assertTrue(store.save(sample.stem, result["merchant"], result["date"],
-                                               result["total"], imported))
+                                               result["amount"], imported))
             self.assertEqual(len(ReceiptStore(store.path).recent()), 3)
 
     def test_real_ocr_adapter_returns_backend_text_unchanged(self):
@@ -44,3 +46,31 @@ class RepositoryIntegrationTests(unittest.TestCase):
         with patch("backend.inference_engine.recognize_receipt", side_effect=RuntimeError("Missing model")):
             with self.assertRaisesRegex(RuntimeError, "Missing model"):
                 read_receipt_text(sample)
+
+    def test_scan_uses_image_text_not_placeholder_values(self):
+        sample = ROOT / "sampleData" / "images" / "receipt_1.png"
+        with patch("backend.inference_engine.recognize_receipt", return_value=
+                   "Merchant: Actual Photo Shop\nDate: 2026-10-01\nTOTAL 78.25") as recognize:
+            result = scan_receipt(sample)
+        recognize.assert_called_once_with(sample)
+        self.assertEqual((result["merchant"], result["date"], result["amount"]),
+                         ("Actual Photo Shop", "2026-10-01", "78.25"))
+
+    def test_scan_leaves_empty_ocr_blank_and_propagates_failures(self):
+        with patch("receiptwise.scanner.read_receipt_text", return_value=""):
+            result = scan_receipt("image.png")
+        self.assertTrue(all(result[key] is None for key in ("merchant", "date", "amount")))
+        with patch("receiptwise.scanner.read_receipt_text", side_effect=RuntimeError("Unreadable")):
+            with self.assertRaisesRegex(RuntimeError, "Unreadable"):
+                scan_receipt("image.png")
+
+    def test_backend_extraction_can_be_saved_without_type_conversion(self):
+        from backend.inference_engine import extract_receipt
+        sample = ROOT / "sampleData" / "images" / "receipt_1.png"
+        with patch("backend.inference_engine.recognize_receipt", return_value=
+                   "Merchant: Test Shop\nDate: 2026-10-09\nTotal: PHP 123.45"):
+            result = extract_receipt(sample)
+        with tempfile.TemporaryDirectory() as directory:
+            store = ReceiptStore(Path(directory) / "test.sqlite3")
+            store.save("parsed", result["merchant"], result["date"], result["amount"], sample)
+            self.assertEqual(store.recent()[0]["total_cents"], 12345)

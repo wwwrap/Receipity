@@ -1,11 +1,11 @@
-"""Replace scan_receipt's body when an OCR module becomes available."""
+"""Real OCR and extraction adapters. Never substitute example receipt data."""
 from pathlib import Path
+from extractor import parse_receipt
 
 
 def scan_receipt(image_path):
-    if not Path(image_path).is_file():
-        raise ValueError("Select a receipt image first.")
-    return {"merchant": "Jollibee", "date": "2026-10-09", "total": "245.50"}
+    """Return merchant/date/amount/notes from the actual selected image."""
+    return parse_receipt(read_receipt_text(image_path))
 
 
 def read_receipt_text(image_path):

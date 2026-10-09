@@ -4,6 +4,7 @@ from pathlib import Path
 import sqlite3
 from threading import Thread
 from uuid import uuid4
+from extractor import parse_receipt
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -13,7 +14,7 @@ from kivy.properties import BooleanProperty, StringProperty
 from kivy.utils import platform
 
 from receiptwise.picker import ImagePicker
-from receiptwise.scanner import scan_receipt, read_receipt_text
+from receiptwise.scanner import read_receipt_text
 from receiptwise.storage import ReceiptStore, money
 
 
@@ -28,6 +29,7 @@ class ReceiptWiseApp(App):
     desktop_ocr = BooleanProperty(platform != "android")
     scanning = BooleanProperty(False)
     raw_text = StringProperty("")
+    review_notes = StringProperty("")
 
     def build(self):
         Window.clearcolor = (.95, .96, .98, 1)
@@ -55,36 +57,34 @@ class ReceiptWiseApp(App):
         self.set_status("Image selected. Scan it or enter the details below.")
 
     def scan(self):
-        if self.scanning or self.saved:
-            return
-        self.raw_text = ""
-        try:
-            result = scan_receipt(self.image_path)
-        except ValueError as exc:
-            self.show_error(str(exc))
-            return
-        for name in ("merchant", "date", "total"):
-            self.root.ids[name].text = result[name]
-        self.set_status("Scan successful (mock data). Check the details before saving.")
+        self.read_ocr()
 
     def read_ocr(self):
-        if self.scanning or not self.image_path or self.saved or not self.desktop_ocr:
+        if self.scanning or self.saved:
+            return
+        if not self.image_path:
+            self.show_error("Select a receipt image first.")
+            return
+        if not self.desktop_ocr:
+            self.show_error("OCR is currently available on desktop. Enter the receipt details manually on Android.")
             return
         draft_id = self.receipt_id
         image_path = self.image_path
         self.scanning = True
         self.raw_text = ""
+        self.review_notes = ""
         self.set_status("Reading receipt text locally. This may take a moment...")
 
         def worker():
-            text, error = "", None
+            text, result, error = "", None, None
             try:
                 text = read_receipt_text(image_path)
+                result = parse_receipt(text)
             except Exception as exc:
                 error = str(exc) or "OCR could not read this image."
-            Clock.schedule_once(lambda dt: finish(text, error))
+            Clock.schedule_once(lambda dt: finish(text, result, error))
 
-        def finish(text, error):
+        def finish(text, result, error):
             self.scanning = False
             if self.receipt_id != draft_id or self.saved:
                 return
@@ -92,11 +92,11 @@ class ReceiptWiseApp(App):
                 self.show_error(error)
                 return
             self.raw_text = text
-            # The upstream API has no field parser. Never retain mock values as OCR output.
-            for name in ("merchant", "date", "total"):
-                self.root.ids[name].text = ""
-            self.set_status("OCR text ready. Enter merchant, date and total from the text below."
-                            if text else "No readable text found. Try another photo or enter details manually.")
+            for name, key in (("merchant", "merchant"), ("date", "date"), ("total", "amount")):
+                self.root.ids[name].text = result[key] or ""
+            self.review_notes = "\n".join(result["notes"])
+            self.set_status("Receipt parsed. Review the extracted fields and notes before saving."
+                            if text else "No readable text found. Enter the receipt details manually.")
 
         Thread(target=worker, daemon=True).start()
 
@@ -143,6 +143,7 @@ class ReceiptWiseApp(App):
                 pass
         self.image_path = ""
         self.raw_text = ""
+        self.review_notes = ""
         self.receipt_id = uuid4().hex
         self.saved = False
         for name in ("merchant", "date", "total"):

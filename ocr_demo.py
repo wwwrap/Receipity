@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from backend.inference_engine import recognize_receipt
+from extractor import parse_receipt
 
 
 def main():
@@ -24,6 +25,8 @@ def main():
     print("\n--- OCR TEXT ---")
     print(text if text else "No readable text detected; try a clearer image.")
     print("--- END ---")
+    print("\n--- EXTRACTED FIELDS (review before saving) ---")
+    print(parse_receipt(text))
 
 
 if __name__ == "__main__":

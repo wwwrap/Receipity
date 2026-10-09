@@ -52,8 +52,27 @@ class SmokeApp(ReceiptWiseApp):
             return True
         try:
             assert self.image_path, self.status
+            assert all(not self.root.ids[key].text for key in ("merchant", "date", "total"))
+            self.ocr_patch = patch("receiptwise.app.read_receipt_text", return_value=
+                                   "Merchant: Corner Market\nDate: 2026-10-09\nTOTAL 78.25")
+            self.ocr_patch.start()
             self.click("Scan Receipt")
-            assert self.root.ids.merchant.text == "Jollibee"
+            self.ticks = 0
+            Clock.schedule_interval(self.check_first_scan, .2)
+        except Exception as exc:
+            self.failure = exc
+            self.stop()
+        return False
+
+    def check_first_scan(self, dt):
+        self.ticks += 1
+        if self.scanning and self.ticks < 50:
+            return True
+        self.ocr_patch.stop()
+        try:
+            assert not self.scanning and not self.status_error
+            assert self.root.ids.merchant.text == "Corner Market"
+            assert self.root.ids.total.text == "78.25"
             self.root.ids.date.text = "2026-02-30"
             self.click("Save Receipt")
             assert self.status_error and not self.saved
@@ -68,7 +87,7 @@ class SmokeApp(ReceiptWiseApp):
             self.saved = False
             self.ocr_patch = patch("receiptwise.app.read_receipt_text", side_effect=RuntimeError("Missing model"))
             self.ocr_patch.start()
-            self.click("Read Receipt Text (Desktop OCR)")
+            self.click("Scan Receipt")
             self.ticks = 0
             Clock.schedule_interval(self.check_ocr_error, .2)
         except Exception as exc:
@@ -87,7 +106,7 @@ class SmokeApp(ReceiptWiseApp):
             assert self.root.ids.total.text == "100.25"
             self.ocr_patch = patch("receiptwise.app.read_receipt_text", return_value="REAL SHOP\nTOTAL 42.00")
             self.ocr_patch.start()
-            self.click("Read Receipt Text (Desktop OCR)")
+            self.click("Scan Receipt")
             self.ticks = 0
             Clock.schedule_interval(self.check_ocr_success, .2)
         except Exception as exc:
@@ -103,7 +122,12 @@ class SmokeApp(ReceiptWiseApp):
         try:
             assert not self.scanning and not self.status_error
             assert self.raw_text == "REAL SHOP\nTOTAL 42.00"
-            assert all(not self.root.ids[name].text for name in ("merchant", "date", "total"))
+            assert self.root.ids.merchant.text == "REAL SHOP"
+            assert self.root.ids.total.text == "42.00"
+            assert not self.root.ids.date.text
+            assert "Date:" in self.review_notes
+            self.click("Save Receipt")
+            assert self.status_error and not self.saved
             # Keep the saved photo retained when resetting this test draft.
             self.saved = True
             self.click("New Receipt")
@@ -125,7 +149,7 @@ class SmokeApp(ReceiptWiseApp):
             scroll = next(widget for widget in self.root.walk() if isinstance(widget, ScrollView))
             scroll.scroll_y = 0
             Clock.schedule_once(self.capture_form, .3)
-            print("PASS: repository image picker, mock scan, validation, save, duplicate protection, OCR success/error, reset, 320px layout")
+            print("PASS: empty placeholders, Scan Receipt OCR wiring, validation, save, duplicate protection, OCR success/error, reset, 320px layout")
         except Exception as exc:
             self.failure = exc
             self.stop()

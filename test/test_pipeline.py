@@ -1,4 +1,4 @@
-"""Read the included samples with the team's text-only OCR API."""
+"""Read and parse included samples; this is a manual check, not accuracy scoring."""
 from pathlib import Path
 import sys
 
@@ -8,12 +8,15 @@ if __package__ in (None, ""):
 
 def evaluate_samples():
     from backend.inference_engine import recognize_receipt
+    from extractor import parse_receipt
 
     image_dir = Path(__file__).resolve().parents[1] / "sampleData" / "images"
     for image in sorted(image_dir.glob("*.png")):
         print(f"\nProcessing: {image.name}")
-        print(recognize_receipt(image) or "No readable text detected.")
-    print("\nText-only evaluation complete. Field parsing is not implemented yet.")
+        text = recognize_receipt(image)
+        print(text or "No readable text detected.")
+        print(parse_receipt(text))
+    print("\nReview parsed fields and notes against each image; unknown values remain None.")
 
 
 if __name__ == "__main__":

@@ -95,8 +95,10 @@ print(text)
 ```
 
 `recognize_receipt` returns a **plain string**, with recognized text separated
-by newlines, not an extracted total or date. Member 2 should parse its output;
-The Kivy desktop UI passes its imported receipt image to the same function. The model
+by newlines. `extractor.parse_receipt(text)` now parses that text into
+`{merchant, date, amount, notes}`; unknown values remain `None` for review.
+`backend.inference_engine.extract_receipt(image)` combines both steps.
+The Kivy desktop UI fills supported fields and displays the review notes. The model
 is cached in memory after the first use for faster subsequent scans.
 
 ## 8. Upload just your work to GitHub
