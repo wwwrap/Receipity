@@ -1,0 +1,25 @@
+1 PICKUP Blend 0.00
+1 Original PICKUP Recipe 0.00
+Take Away
+1 Iced Vanilla Latte U 100.00
+1 PICKUP Blend 0.00
+1 Original PICKUP Recipe 0.00
+Take Away
+1 Milosaurus U 94.00
+1 Original PICKUP Recipe 0.00
+Take Away
+1 Iced White Chocolate Matcha U 110.00
+1 Original PICKUP Recipe 0.00
+12 Subtotal
+PWD: -20.36
+Less VAT: -12.21
+Roundings: P0.00
+Grand Total: P460.43
+VATable Sales: 338.39
+VAT Amount: 40.61
+Service Charge: 0.00
+VAT Exempt Sales: 101.79
+Zero Rated Sales: 0.00
+Amount Tendered:
+Cash P500.00
+Change P39.57

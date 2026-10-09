@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "provenance": "User-provided photographs. Manual field annotations and selected-text transcriptions; no OCR was run.",
+  "bbox_format": "Approximate normalized [left, top, right, bottom] in original image coordinates, origin top-left. These are field regions, not precise OCR word polygons. Null means no visible region.",
+  "currency": "PHP",
+  "reference_date": "2026-10-10",
+  "receipts": [
+    {
+      "id": "01_goldilocks",
+      "fields": {
+        "merchant": {
+          "value": null,
+          "status": "review",
+          "evidence": "Merchant heading is clipped/faint. WWW.GOLDILOCKS.COM.PH suggests Goldilocks; branch address alone is not merchant ground truth.",
+          "bbox": [
+            0.39,
+            0.746,
+            0.62,
+            0.766
+          ]
+        },
+        "date": {
+          "value": "2025-06-16",
+          "status": "visible",
+          "evidence": "06/16/2025 14:52",
+          "bbox": [
+            0.277,
+            0.203,
+            0.448,
+            0.225
+          ]
+        },
+        "amount": {
+          "value": 810,
+          "status": "visible",
+          "evidence": "TOTAL DUE 810.00",
+          "bbox": [
+            0.31,
+            0.371,
+            0.758,
+            0.405
+          ]
+        }
+      },
+      "notes": [
+        "Do not select 860.00 before the promo, cash, change, VAT, or total savings.",
+        "Ignore footer Date Issued and Valid Until dates."
+      ],
+      "image": "images/01_goldilocks.png",
+      "transcription": "../../test/fixtures/receipts/01_goldilocks.txt",
+      "source_attachment": "codex-clipboard-686bc81a-dc25-456a-83a2-17f9f0b899cb.png",
+      "expected_parser": {
+        "merchant": null,
+        "date": "2025-06-16",
+        "amount": 810
+      }
+    },
+    {
+      "id": "02_grocery",
+      "fields": {
+        "merchant": {
+          "value": null,
+          "status": "missing",
+          "evidence": "Business heading is outside the image.",
+          "bbox": null
+        },
+        "date": {
+          "value": "2026-06-12",
+          "status": "visible",
+          "evidence": "Trans. Date: 2026-06-12 16:22:47",
+          "bbox": [
+            0.257,
+            0.059,
+            0.6,
+            0.082
+          ]
+        },
+        "amount": {
+          "value": 1696.35,
+          "status": "visible",
+          "evidence": "Total Amt Due Php 1,696.35",
+          "bbox": [
+            0.297,
+            0.767,
+            0.622,
+            0.799
+          ]
+        }
+      },
+      "notes": [
+        "Total is partly crossed by handwriting but legible.",
+        "BDO debit is payment, BALANCE 0.00 is not the purchase total."
+      ],
+      "image": "images/02_grocery.png",
+      "transcription": "../../test/fixtures/receipts/02_grocery.txt",
+      "source_attachment": "codex-clipboard-55b85e21-0e4a-4523-9bb2-b420fc0fb906.png",
+      "expected_parser": {
+        "merchant": null,
+        "date": "2026-06-12",
+        "amount": 1696.35
+      }
+    },
+    {
+      "id": "03_north_park",
+      "fields": {
+        "merchant": {
+          "value": "North Park Noodle House Inc.",
+          "status": "review",
+          "evidence": "Business name printed below the logo; parser returns header with a confirmation note.",
+          "bbox": [
+            0.36,
+            0.148,
+            0.598,
+            0.177
+          ]
+        },
+        "date": {
+          "value": null,
+          "status": "missing",
+          "evidence": "No transaction date is visible.",
+          "bbox": null
+        },
+        "amount": {
+          "value": 1540,
+          "status": "visible",
+          "evidence": "TOTAL 1,540.00 ₱",
+          "bbox": [
+            0.173,
+            0.879,
+            0.666,
+            0.914
+          ]
+        }
+      },
+      "notes": [
+        "Printed text says THIS IS NOT AN OFFICIAL RECEIPT.",
+        "Untaxed amount and VAT are not selected as the total."
+      ],
+      "image": "images/03_north_park.png",
+      "transcription": "../../test/fixtures/receipts/03_north_park.txt",
+      "source_attachment": "codex-clipboard-4f490373-1b69-4883-af74-528260007dbf.png",
+      "expected_parser": {
+        "merchant": "North Park Noodle House Inc.",
+        "date": null,
+        "amount": 1540
+      }
+    },
+    {
+      "id": "04_coffee",
+      "fields": {
+        "merchant": {
+          "value": null,
+          "status": "missing",
+          "evidence": "Business heading is cropped out; PICKUP in item names does not establish the merchant.",
+          "bbox": null
+        },
+        "date": {
+          "value": null,
+          "status": "missing",
+          "evidence": "No transaction date is visible.",
+          "bbox": null
+        },
+        "amount": {
+          "value": 460.43,
+          "status": "review",
+          "evidence": "P460.43 is visible; the beginning of Grand Total is occluded. Manual transcription restores this label.",
+          "bbox": [
+            0.184,
+            0.588,
+            0.772,
+            0.627
+          ]
+        }
+      },
+      "notes": [
+        "460.43 is a human-reviewed amount, not a guarantee that OCR recovers the occluded label.",
+        "Do not substitute cash 500.00, change 39.57, or sum the cropped item list.",
+        "Personal identifiers at the bottom are omitted from the text fixture."
+      ],
+      "image": "images/04_coffee.png",
+      "transcription": "../../test/fixtures/receipts/04_coffee.txt",
+      "source_attachment": "codex-clipboard-ab4a2045-8d8b-454c-b92a-b5b107b0b494.png",
+      "expected_parser": {
+        "merchant": null,
+        "date": null,
+        "amount": 460.43
+      }
+    }
+  ]
+}

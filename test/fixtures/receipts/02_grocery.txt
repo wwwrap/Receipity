@@ -1,0 +1,23 @@
+VAT REG TIN: [redacted]
+S/N: [redacted]
+MIN: [redacted]
+PTU: [redacted]
+SALES INVOICE
+Trans. Date: 2026-06-12 16:22:47
+Cashier: [redacted]
+Bagger: BAGGER
+MC I-SALT 150G
+1 x 12.00 12.00 V
+B.FIESTA BAGOONG
+1 x 35.35 35.35 V
+Subtotal 1,696.35
+Total Discount 0.00
+Total Amt Due Php 1,696.35
+BDO DEBIT 1,696.35
+BALANCE 0.00
+CHANGE 0.00
+Item Purchased 26
+VATable Sale (V) 1,269.78
+VAT (12%) 152.37
+VAT Exempt Sale (E) 274.20
+Zero Rated Sale (Z) 0.00
