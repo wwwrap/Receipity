@@ -1,4 +1,2 @@
-gradio
-easyocr
-pandas
-pillow
+# Receipt UI; optional desktop OCR tools are in requirements-ocr.txt.
+-r requirements-mobile.txt

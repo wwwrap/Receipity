@@ -1,0 +1,168 @@
+#:import dp kivy.metrics.dp
+
+<Copy@Label>:
+    color: .13, .18, .25, 1
+    font_size: '15sp'
+    size_hint_y: None
+    height: self.texture_size[1] + dp(6)
+    text_size: self.width, None
+    halign: 'left'
+    valign: 'middle'
+
+<Heading@Copy>:
+    font_size: '20sp'
+    bold: True
+
+<Action@Button>:
+    size_hint_y: None
+    height: dp(52)
+    font_size: '16sp'
+    bold: True
+    background_normal: ''
+    background_color: .10, .36, .65, 1
+    color: 1, 1, 1, 1
+
+<Field@TextInput>:
+    size_hint_y: None
+    height: dp(52)
+    multiline: False
+    font_size: '16sp'
+    padding: dp(12), dp(14)
+    background_normal: ''
+    background_active: ''
+    background_color: .94, .96, .98, 1
+    foreground_color: .12, .17, .24, 1
+    cursor_color: .10, .36, .65, 1
+    write_tab: False
+    disabled: app.saved or app.scanning
+
+<Card@BoxLayout>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: self.minimum_height
+    padding: dp(16)
+    spacing: dp(10)
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(10)]
+
+BoxLayout:
+    orientation: 'vertical'
+    canvas.before:
+        Color:
+            rgba: .95, .96, .98, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    ScrollView:
+        do_scroll_x: False
+        bar_width: dp(4)
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: None
+            height: self.minimum_height
+            padding: dp(16), dp(20)
+            spacing: dp(16)
+            Heading:
+                text: 'ReceiptWise'
+                font_size: '28sp'
+            Copy:
+                text: 'Scan, check, and save your receipts.'
+            Card:
+                Heading:
+                    text: '1. Receipt image'
+                FloatLayout:
+                    size_hint_y: None
+                    height: dp(200)
+                    canvas.before:
+                        Color:
+                            rgba: .95, .96, .98, 1
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
+                    Image:
+                        pos_hint: {'center_x': .5, 'center_y': .5}
+                        source: app.image_path
+                        fit_mode: 'contain'
+                        opacity: 1 if app.image_path else 0
+                    Label:
+                        pos_hint: {'center_x': .5, 'center_y': .5}
+                        text: 'No receipt image selected\nChoose a photo from your device.'
+                        color: .36, .42, .49, 1
+                        text_size: self.width - dp(20), None
+                        halign: 'center'
+                        opacity: 0 if app.image_path else 1
+                Action:
+                    text: 'Select Receipt Image'
+                    disabled: app.scanning
+                    on_release: app.select_image()
+                Action:
+                    text: 'Scan Receipt'
+                    disabled: not app.image_path or app.saved or app.scanning
+                    on_release: app.scan()
+                Copy:
+                    text: 'Prototype: scanning uses sample data, not real OCR.'
+                    font_size: '12sp'
+                Action:
+                    text: 'Read Receipt Text (Desktop OCR)'
+                    font_size: '14sp'
+                    height: dp(52) if app.desktop_ocr else 0
+                    opacity: 1 if app.desktop_ocr else 0
+                    disabled: not app.desktop_ocr or not app.image_path or app.saved or app.scanning
+                    on_release: app.read_ocr()
+                Copy:
+                    text: app.raw_text
+                    height: self.texture_size[1] + dp(6) if app.raw_text else 0
+            Card:
+                Heading:
+                    text: '2. Check receipt details'
+                Copy:
+                    text: 'Merchant name'
+                Field:
+                    id: merchant
+                    hint_text: 'e.g. Jollibee'
+                    on_text_validate: date.focus = True
+                Copy:
+                    text: 'Transaction date (YYYY-MM-DD)'
+                Field:
+                    id: date
+                    hint_text: 'e.g. 2026-10-09'
+                    on_text_validate: total.focus = True
+                Copy:
+                    text: 'Total amount (PHP)'
+                Field:
+                    id: total
+                    hint_text: 'e.g. 245.50'
+                    input_type: 'number'
+                Action:
+                    text: 'Receipt Saved' if app.saved else 'Save Receipt'
+                    background_color: .08, .43, .32, 1
+                    disabled: app.saved or not app.storage_ready or app.scanning
+                    on_release: app.save_receipt()
+                Action:
+                    text: 'New Receipt'
+                    disabled: app.scanning
+                    background_color: .32, .38, .46, 1
+                    on_release: app.clear_draft()
+            Card:
+                Heading:
+                    text: 'Recent receipts'
+                Copy:
+                    text: app.history_text
+    Label:
+        text: app.status
+        size_hint_y: None
+        height: max(dp(68), self.texture_size[1] + dp(20))
+        text_size: self.width - dp(32), None
+        font_size: '14sp'
+        color: (.72, .16, .14, 1) if app.status_error else (.08, .36, .28, 1)
+        canvas.before:
+            Color:
+                rgba: .88, .93, .95, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
