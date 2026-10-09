@@ -10,7 +10,7 @@ def fetch_samples():
     # Create directories if they don't exist
     os.makedirs("sampleData/images", exist_ok=True)
     os.makedirs("sampleData/annotations", exist_ok=True)
-
+    
     for i, item in enumerate(dataset):
         # Save the image
         img_path = os.path.join("sampleData", "images", f"receipt_{i+1}.png")
