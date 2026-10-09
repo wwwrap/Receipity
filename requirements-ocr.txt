@@ -1,0 +1,4 @@
+# Optional desktop OCR. Do not include EasyOCR/PyTorch in the Android build.
+-r requirements-mobile.txt
+easyocr
+numpy

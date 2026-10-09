@@ -19,17 +19,6 @@ def init_db():
         )
     """)
     
-    # Table to store user's budget/allowance configuration
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value REAL
-        )
-    """)
-    
-    # Initialize default allowance if not set (e.g., 5000 budget)
-    cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('allowance', 5000.0)")
-    
     conn.commit()
     conn.close()
 
@@ -59,28 +48,3 @@ def get_expenses():
     conn.close()
     
     return [dict(row) for row in rows]
-
-def get_balance():
-    """Calculates remaining balance based on initial allowance minus total expenses."""
-    init_db()
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    # Get total starting allowance
-    cursor.execute("SELECT value FROM settings WHERE key = 'allowance'")
-    row = cursor.fetchone()
-    allowance = row[0] if row else 5000.0
-    
-    # Get sum of all expenses
-    cursor.execute("SELECT SUM(total) FROM expenses")
-    sum_row = cursor.fetchone()
-    total_spent = sum_row[0] if sum_row and sum_row[0] is not None else 0.0
-    
-    conn.close()
-    
-    remaining = allowance - total_spent
-    return {
-        "allowance": allowance,
-        "total_spent": total_spent,
-        "remaining": remaining
-    }

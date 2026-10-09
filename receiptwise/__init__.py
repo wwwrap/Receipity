@@ -1,0 +1,1 @@
+"""ReceiptWise mobile prototype."""

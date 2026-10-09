@@ -20,7 +20,7 @@ def download_models():
     except ImportError as exc:
         raise RuntimeError(
             "EasyOCR is missing. Install project packages: "
-            "python -m pip install -r requirements.txt"
+            "python -m pip install -r requirements-ocr.txt"
         ) from exc
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
@@ -43,7 +43,7 @@ def get_reader():
     except ImportError as exc:
         raise RuntimeError(
             "EasyOCR is missing. Install project packages: "
-            "python -m pip install -r requirements.txt"
+            "python -m pip install -r requirements-ocr.txt"
         ) from exc
 
     if not MODEL_DIR.is_dir() or not any(MODEL_DIR.glob("*.pth")):

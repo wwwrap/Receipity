@@ -31,6 +31,7 @@ MANIFEST
 #   before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+!buildozer.spec
 
 # Installer logs
 pip-log.txt
@@ -221,3 +222,8 @@ __marimo__/
 
 # Local pretrained EasyOCR model weights (download on each machine)
 /models/
+# Kivy Android build outputs and local receipt data
+.buildozer/
+bin/
+.test-data/
+*.sqlite3
