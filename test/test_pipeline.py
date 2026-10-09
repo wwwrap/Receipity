@@ -1,4 +1,4 @@
-"""Read the included samples with the team's text-only OCR API."""
+"""Manually evaluate real OCR and extraction on the supplied receipt photos."""
 from pathlib import Path
 import sys
 
@@ -7,13 +7,14 @@ if __package__ in (None, ""):
 
 
 def evaluate_samples():
-    from backend.inference_engine import recognize_receipt
+    import json
+    from receiptwise.scanner import scan_receipt
 
-    image_dir = Path(__file__).resolve().parents[1] / "sampleData" / "images"
+    image_dir = Path(__file__).resolve().parents[1] / "sampleData" / "user_receipts" / "images"
     for image in sorted(image_dir.glob("*.png")):
         print(f"\nProcessing: {image.name}")
-        print(recognize_receipt(image) or "No readable text detected.")
-    print("\nText-only evaluation complete. Field parsing is not implemented yet.")
+        print(json.dumps(scan_receipt(image), indent=2, ensure_ascii=True))
+    print("\nReview extracted fields against sampleData/user_receipts/annotations.json.")
 
 
 if __name__ == "__main__":

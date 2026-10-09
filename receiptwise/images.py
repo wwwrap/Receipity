@@ -24,5 +24,5 @@ def import_image(source, destination):
                 image.convert("RGB").save(target, "JPEG", quality=90)
     except Exception as exc:
         target.unlink(missing_ok=True)
-        raise ValueError("Cannot open this image. Choose a valid JPG, PNG or WebP.") from exc
+        raise ValueError("Cannot open this image. Choose a valid JPG, PNG, WebP, BMP, TIFF or GIF.") from exc
     return str(target)

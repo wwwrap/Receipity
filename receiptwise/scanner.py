@@ -1,11 +1,13 @@
-"""Replace scan_receipt's body when an OCR module becomes available."""
+"""Receipt image -> local OCR -> conservative field extraction."""
 from pathlib import Path
 
 
 def scan_receipt(image_path):
-    if not Path(image_path).is_file():
-        raise ValueError("Select a receipt image first.")
-    return {"merchant": "Jollibee", "date": "2026-10-09", "total": "245.50"}
+    # Lazy import keeps the manually entered Android flow independent of OCR.
+    from backend.extractor import extract_receipt
+
+    text = read_receipt_text(image_path)
+    return {**extract_receipt(text), "raw_text": text}
 
 
 def read_receipt_text(image_path):

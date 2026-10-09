@@ -173,6 +173,29 @@ Date Issued: 01/02/2024
     def test_occluded_total_label_needs_review(self):
         self.assertIsNone(self.parse('rand Total: P460.43\nCash P500.00\nChange P39.57')['amount'])
 
+    def test_real_ocr_spacing_and_issued_date_noise(self):
+        text = '06 / 16 / 2025 14:52\nTOTAL DUE 810 .00\nDate [ssued: 12/12/2013\nDate Tssued: 12/12/2013'
+        result = self.parse(text)
+        self.assertEqual(result['date'], '2025-06-16')
+        self.assertEqual(result['amount'], 810.0)
+        self.assertEqual(self.parse('Trans. Date 2026-06- 12')['date'], '2026-06-12')
+
+    def test_item_rows_and_menu_codes_are_not_merchants(self):
+        for text in ('Nasi Campur Bali 75,000\nMilkShake 3tarwd 37,Ooo',
+                     'Tendon BN18. Anise\nDumpling\nTOTAL 1540.00'):
+            with self.subTest(text=text):
+                self.assertIsNone(self.parse(text)['merchant'])
+
+    def test_detached_centavos_not_accepted_as_entire_total(self):
+        self.assertIsNone(self.parse('Total Amt Due 35')['amount'])
+        self.assertEqual(self.parse('Total Amt Due PHP 35')['amount'], 35.0)
+
+    def test_visible_amount_with_unreadable_currency_needs_review(self):
+        result = self.parse('TOTAL 1,540.00 #')
+        self.assertEqual(result['amount'], 1540.0)
+        self.assertTrue(any('currency' in note for note in result['notes']))
+        self.assertIsNone(self.parse('TOTAL 1,54O.00 #')['amount'])
+
 
 if __name__ == '__main__':
     unittest.main()

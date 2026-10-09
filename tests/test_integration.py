@@ -1,4 +1,4 @@
-"""Check the pulled sample assets and text-only OCR/UI boundary."""
+"""Exercise the scan/parser boundary using controlled OCR text, without models."""
 import json
 import tempfile
 import unittest
@@ -28,9 +28,11 @@ class RepositoryIntegrationTests(unittest.TestCase):
                     with Image.open(imported) as image:
                         self.assertLessEqual(max(image.size), 1600)
                         self.assertEqual(image.mode, "RGB")
-                    result = scan_receipt(imported)
+                    # OCR is controlled here; never save invented production scan data.
+                    with patch('receiptwise.scanner.read_receipt_text', return_value='Merchant: Test Shop\nDate: 2026-06-12\nTOTAL 123.45'):
+                        result = scan_receipt(imported)
                     self.assertTrue(store.save(sample.stem, result["merchant"], result["date"],
-                                               result["total"], imported))
+                                               f'{result["amount"]:.2f}', imported))
             self.assertEqual(len(ReceiptStore(store.path).recent()), 3)
 
     def test_real_ocr_adapter_returns_backend_text_unchanged(self):
@@ -43,4 +45,31 @@ class RepositoryIntegrationTests(unittest.TestCase):
         sample = ROOT / "sampleData" / "images" / "receipt_1.png"
         with patch("backend.inference_engine.recognize_receipt", side_effect=RuntimeError("Missing model")):
             with self.assertRaisesRegex(RuntimeError, "Missing model"):
-                read_receipt_text(sample)
+                scan_receipt(sample)
+
+    def test_user_photos_flow_through_parser_with_review_notes(self):
+        root = ROOT / 'sampleData' / 'user_receipts'
+        annotations = json.loads((root / 'annotations.json').read_text(encoding='utf-8'))
+        for sample in annotations['receipts']:
+            with self.subTest(sample=sample['id']):
+                text = (root / sample['transcription']).read_text(encoding='utf-8')
+                with patch('receiptwise.scanner.read_receipt_text', return_value=text):
+                    result = scan_receipt(root / sample['image'])
+                self.assertEqual(result['raw_text'], text)
+                for field, expected in sample['expected_parser'].items():
+                    self.assertEqual(result[field], expected)
+                self.assertTrue(result['notes'])
+
+    def test_bad_dates_and_missing_totals_stay_empty(self):
+        for text in ('Merchant: Test Shop\nDate: 2026-02-30\nCash 100.00', '',
+                     'Date: 03/04/2026\nSubtotal 20.00'):
+            with self.subTest(text=text), patch('receiptwise.scanner.read_receipt_text', return_value=text):
+                result = scan_receipt('controlled-test-input')
+                self.assertIsNone(result['date'])
+                self.assertIsNone(result['amount'])
+                self.assertTrue(any('Review date:' in note for note in result['notes']))
+                self.assertTrue(any('Review amount:' in note for note in result['notes']))
+
+    def test_missing_image_does_not_produce_example_data(self):
+        with self.assertRaisesRegex(ValueError, 'Select a receipt image'):
+            scan_receipt('does-not-exist.png')

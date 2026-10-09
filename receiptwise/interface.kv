@@ -102,24 +102,21 @@ BoxLayout:
                     on_release: app.select_image()
                 Action:
                     text: 'Scan Receipt'
-                    disabled: not app.image_path or app.saved or app.scanning
+                    disabled: not app.desktop_ocr or not app.image_path or app.saved or app.scanning
                     on_release: app.scan()
                 Copy:
-                    text: 'Prototype: scanning uses sample data, not real OCR.'
+                    text: 'Scan fills readable fields. Uncertain details stay blank for review.' if app.desktop_ocr else 'Enter receipt details manually. Scanning is available on desktop.'
                     font_size: '12sp'
-                Action:
-                    text: 'Read Receipt Text (Desktop OCR)'
-                    font_size: '14sp'
-                    height: dp(52) if app.desktop_ocr else 0
-                    opacity: 1 if app.desktop_ocr else 0
-                    disabled: not app.desktop_ocr or not app.image_path or app.saved or app.scanning
-                    on_release: app.read_ocr()
                 Copy:
                     text: app.raw_text
                     height: self.texture_size[1] + dp(6) if app.raw_text else 0
             Card:
                 Heading:
                     text: '2. Check receipt details'
+                Copy:
+                    text: app.review_notes
+                    color: .65, .32, .05, 1
+                    height: self.texture_size[1] + dp(6) if app.review_notes else 0
                 Copy:
                     text: 'Merchant name'
                 Field:

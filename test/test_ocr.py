@@ -50,20 +50,37 @@ class ImagePreparationTests(unittest.TestCase):
 
 
 class InferenceTests(unittest.TestCase):
+    def test_rows_follow_geometry_not_ocr_fragment_order(self):
+        def box(x, y, text, height=12):
+            return ([[x, y], [x+40, y], [x+40, y+height], [x, y+height]], text, .9)
+        detections = [box(150, 22, '810 .00'), box(0, 50, 'CASH'),
+                      box(70, 20, 'DUE'), box(0, 20, 'TOTAL'),
+                      box(0, 0, 'STORE'), box(150, 50, '1000.00')]
+        self.assertEqual(inference_engine.receipt_lines(detections),
+                         ['STORE', 'TOTAL DUE 810 .00', 'CASH 1000.00'])
+
+    def test_adjacent_rows_do_not_merge_via_tall_box(self):
+        detections = [([[0, 0], [40, 0], [40, 10], [0, 10]], 'TOTAL', .9),
+                      ([[80, 0], [140, 0], [140, 14], [80, 14]], '120.00', .9),
+                      ([[0, 16], [40, 16], [40, 26], [0, 26]], 'CASH', .9)]
+        self.assertEqual(inference_engine.receipt_lines(detections), ['TOTAL 120.00', 'CASH'])
+
     def test_text_returned_for_member_two(self):
         class FakeReader:
             def readtext(self, pixels, detail, paragraph):
                 self.pixels = pixels
                 self.detail = detail
                 self.paragraph = paragraph
-                return [" STORE ", "TOTAL", " 120.00 ", " "]
+                return [([[0, 0], [40, 0], [40, 10], [0, 10]], ' STORE ', .9),
+                        ([[0, 20], [40, 20], [40, 30], [0, 30]], 'TOTAL', .9),
+                        ([[80, 20], [120, 20], [120, 30], [80, 30]], ' 120.00 ', .9)]
 
         reader = FakeReader()
         with patch.object(inference_engine, "get_reader", return_value=reader):
             text = inference_engine.recognize_receipt(Image.new("RGB", (8, 8)))
-        self.assertEqual(text, "STORE\nTOTAL\n120.00")
+        self.assertEqual(text, "STORE\nTOTAL 120.00")
         self.assertEqual(reader.pixels.shape, (8, 8, 3))
-        self.assertEqual(reader.detail, 0)
+        self.assertEqual(reader.detail, 1)
         self.assertIs(reader.paragraph, False)
 
 

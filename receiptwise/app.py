@@ -13,7 +13,7 @@ from kivy.properties import BooleanProperty, StringProperty
 from kivy.utils import platform
 
 from receiptwise.picker import ImagePicker
-from receiptwise.scanner import scan_receipt, read_receipt_text
+from receiptwise.scanner import scan_receipt
 from receiptwise.storage import ReceiptStore, money
 
 
@@ -28,6 +28,7 @@ class ReceiptWiseApp(App):
     desktop_ocr = BooleanProperty(platform != "android")
     scanning = BooleanProperty(False)
     raw_text = StringProperty("")
+    review_notes = StringProperty("")
 
     def build(self):
         Window.clearcolor = (.95, .96, .98, 1)
@@ -35,7 +36,7 @@ class ReceiptWiseApp(App):
         if platform != "android":
             Window.size = (390, 780)
         self.receipt_id = uuid4().hex
-        self.data_folder = Path(os.environ.get("RECEIPTWISE_DATA_DIR", self.user_data_dir))
+        self.data_folder = Path(os.environ.get("RECEIPTWISE_DATA_DIR") or self.user_data_dir)
         self.picker = ImagePicker(self.data_folder / "images", self.image_selected, self.show_error)
         root = Builder.load_file(str(Path(__file__).with_name("interface.kv")))
         try:
@@ -57,48 +58,47 @@ class ReceiptWiseApp(App):
     def scan(self):
         if self.scanning or self.saved:
             return
-        self.raw_text = ""
-        try:
-            result = scan_receipt(self.image_path)
-        except ValueError as exc:
-            self.show_error(str(exc))
+        if not self.image_path:
+            self.show_error("Select a receipt image first.")
             return
-        for name in ("merchant", "date", "total"):
-            self.root.ids[name].text = result[name]
-        self.set_status("Scan successful (mock data). Check the details before saving.")
-
-    def read_ocr(self):
-        if self.scanning or not self.image_path or self.saved or not self.desktop_ocr:
+        if not self.desktop_ocr:
+            self.show_error("Scanning is available on desktop. Enter the receipt details manually.")
             return
         draft_id = self.receipt_id
         image_path = self.image_path
         self.scanning = True
         self.raw_text = ""
-        self.set_status("Reading receipt text locally. This may take a moment...")
+        self.review_notes = ""
+        self.set_status("Scanning receipt locally. This may take a moment...")
 
         def worker():
-            text, error = "", None
+            result, error = None, None
             try:
-                text = read_receipt_text(image_path)
+                result = scan_receipt(image_path)
             except Exception as exc:
                 error = str(exc) or "OCR could not read this image."
-            Clock.schedule_once(lambda dt: finish(text, error))
+            Clock.schedule_once(lambda dt: finish(result, error))
 
-        def finish(text, error):
+        def finish(result, error):
             self.scanning = False
             if self.receipt_id != draft_id or self.saved:
                 return
             if error:
                 self.show_error(error)
                 return
-            self.raw_text = text
-            # The upstream API has no field parser. Never retain mock values as OCR output.
-            for name in ("merchant", "date", "total"):
-                self.root.ids[name].text = ""
-            self.set_status("OCR text ready. Enter merchant, date and total from the text below."
-                            if text else "No readable text found. Try another photo or enter details manually.")
+            self.raw_text = result['raw_text']
+            self.root.ids.merchant.text = result['merchant'] or ""
+            self.root.ids.date.text = result['date'] or ""
+            self.root.ids.total.text = "" if result['amount'] is None else f"{result['amount']:.2f}"
+            self.review_notes = "\n".join(result['notes'])
+            self.set_status("Review the flagged fields below before saving."
+                            if result['notes'] else "Scan complete. Check the details before saving.")
 
         Thread(target=worker, daemon=True).start()
+
+    def read_ocr(self):
+        """Compatibility with callers of the former text-only scan action."""
+        self.scan()
 
     def save_receipt(self):
         if self.scanning:
@@ -143,6 +143,7 @@ class ReceiptWiseApp(App):
                 pass
         self.image_path = ""
         self.raw_text = ""
+        self.review_notes = ""
         self.receipt_id = uuid4().hex
         self.saved = False
         for name in ("merchant", "date", "total"):

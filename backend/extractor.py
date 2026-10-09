@@ -30,7 +30,7 @@ _DATE = re.compile(
     rf"{_MONTH}[ .-]+\d{{1,2}}(?:,?\s+|[.-])\d{{4}}|"
     rf"\d{{1,2}}[ .-]+{_MONTH}(?:,?\s+|[.-])\d{{4}})(?!\w)", re.I
 )
-_ADMIN_DATE = re.compile(r"\b(?:valid|expiry|expires|expiration|issued|issuance|accreditation|permit|ATP|PTU|printed|printing)\b", re.I)
+_ADMIN_DATE = re.compile(r"(?:\b(?:valid|expiry|expires|expiration|[itle1]ssued|[il1]csued|issuance|accreditation|permit|ATP|PTU|printed|printing)\b|\[ssued\b)", re.I)
 _TRANSACTION_DATE = re.compile(r"\b(?:(?:transaction|trans\.?|purchase|sale|invoice|receipt)\s+date|date\s+of\s+(?:sale|purchase))\b", re.I)
 _TOTAL = re.compile(
     r"^(?P<label>grand\s+total|total\s+(?:amount|amt\.?)\s+due|total\s+due|amount\s+due|"
@@ -46,7 +46,7 @@ _HEADER_NOISE = re.compile(
     r"avenue|ave|barangay|brgy|city|province|telephone|tel|phone|mobile|cashier|"
     r"terminal|date|time|customer|sold\s+to|bill\s+to|total|subtotal|cash|change|"
     r"permit|ATP|PTU|accreditation|serial|machine|welcome|thank|www|com|"
-    r"branch|floor|highway|philippines)\b", re.I
+    r"branch|floor|highway|philippines|ground|cor|corner|MIN|SN|POS)\b", re.I
 )
 
 
@@ -82,7 +82,7 @@ def _extract_date(lines: list[str], order: str | None, today: date, notes: list[
             continue
         if index and _ADMIN_DATE.search(lines[index - 1]) and re.fullmatch(r"[\w\s]+:\s*", lines[index - 1]):
             continue
-        rank = 1 if _TRANSACTION_DATE.search(line) or re.match(r"^date\b", line, re.I) else 0
+        rank = 1 if _TRANSACTION_DATE.search(line) or re.match(r"^date\s*(?::|;|$|\d)", line, re.I) else 0
         matches = list(_DATE.finditer(line))
         if rank and not matches:
             # OCR can put a label and its value on separate lines.
@@ -127,6 +127,16 @@ def _extract_amount(lines: list[str], notes: list[str]) -> float | None:
         if not value and index + 1 < len(lines):
             value = lines[index + 1]
         money = _MONEY.fullmatch(value.strip())
+        if not money and re.search(r"\s[?#&]$", value):
+            # Some fonts' peso sign is recognized as punctuation. Preserve the
+            # readable number, but explicitly request confirmation of currency.
+            money = _MONEY.fullmatch(value[:-1].strip())
+            if money:
+                notes.append("Review amount: unclear currency symbol after the total; confirm pesos.")
+        # A bare integer can be a detached centavos fragment from a damaged
+        # OCR row (e.g. only "35" from "1,696.35"). Require currency or cents.
+        if money and '.' not in money['amount'] and not re.search(_CURRENCY, value, re.I):
+            money = None
         candidates.append((rank, Decimal(money['amount'].replace(',', '')) if money else None))
     if not candidates:
         notes.append("Review amount: no explicitly labeled total found.")
@@ -154,11 +164,17 @@ def _extract_merchant(lines: list[str], notes: list[str]) -> str | None:
     if explicit_names:
         return explicit_names.pop()
     for line in lines[:10]:
+        # A priced row marks the item list, even when OCR lost its quantity.
+        # Do not skip that row and promote the next item to business name.
+        if re.search(r"\s\d[\d,]*\.\d{2}\s*(?:[VE]|PHP|₱)?$|\s\d{1,3}(?:,\d{3})+$", line, re.I):
+            break
+        if re.search(r"\b[A-Z]{1,4}\d{1,4}\b", line):
+            break
         # Stop at transaction content so an item/customer cannot become merchant.
         if (_TOTAL.match(line) or re.match(r"^(?:date|cashier|customer|sold\s+to|qty|item|description|take\s+away|take[ -]out)\b", line, re.I)
                 or re.match(r"^\d+(?:\.\d+)?\s+[A-Za-z]", line) or _DATE.search(line)):
             break
-        if (_HEADER_NOISE.search(line) or re.search(r"\d{3,}|\d+\.\d{2}|[@:/]", line)
+        if (_HEADER_NOISE.search(line) or re.search(r"\d{3,}|\d+\.\d{2}|[@:/]|[a-z]\d|\d[a-z]", line, re.I)
                 or not re.search(r"[a-z]{2}", line, re.I)):
             continue
         notes.append("Review merchant: inferred from receipt header; confirm the business name.")
@@ -182,6 +198,9 @@ def extract_receipt(
     if date_order not in (None, "MDY", "DMY"):
         raise ValueError("date_order must be MDY, DMY, or None")
     lines = [' '.join(line.split()) for line in text.splitlines() if line.strip()]
+    # Rejoin whitespace around visible punctuation; do not invent separators
+    # or turn OCR letters into digits. E.g. "810 .00" -> "810.00".
+    lines = [re.sub(r"(?<=\d)\s*([.,/\-])\s*(?=\d)", r"\1", line) for line in lines]
     notes: list[str] = []
     return {
         "merchant": _extract_merchant(lines, notes),

@@ -47,5 +47,9 @@ production-ready. Print a supplied sample's parsed result with:
 python -m backend.extractor test/fixtures/receipts/02_grocery.txt
 ```
 
-The OCR engine and application are currently stubs; call this function after OCR
-is implemented and route any result with notes to the review UI.
+The desktop UI now calls this function after local OCR through
+`receiptwise.scanner.scan_receipt`. It fills the form, leaves None values blank,
+and displays notes in the review section. Launch `python main.py`; scanning needs
+the packages in `requirements-ocr.txt` and models from `pre_download_models.py`.
+Android supports manual entry only. `python test/test_pipeline.py` runs real OCR
+and extraction on all four user-supplied images for manual comparison.
